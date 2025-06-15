@@ -284,37 +284,63 @@ public class PenyewaanMethod {
             return;
         }
 
-        // Tampilkan semua antrian terlebih dahulu
-        System.out.println("\n=== DAFTAR ANTRIAN PENYEWAAN YANG BELUM DISETUJUI ===");
-        System.out.printf("%-5s %-15s %-20s %-20s %-15s%n",
-            "ID", "Nama User", "Tgl Sewa", "Barang Jaminan", "Status");
+        Queue<Penyewaan> sortedQueue = new Queue<>();
 
-        // Salin queue ke sementara untuk preview tanpa menghapus isinya
-        Queue<Penyewaan> tempQueue = new Queue<>();
+        // Selection Sort manual tanpa List
         while (!queue.isEmpty()) {
-            Penyewaan p = queue.dequeue();
-            System.out.printf("%-5d %-15s %-20s %-20s %-15s%n",
+            Penyewaan earliest = null;
+            Queue<Penyewaan> tempQueue = new Queue<>();
+
+            // Temukan elemen dengan tgl_rencana_menyewa paling awal
+            while (!queue.isEmpty()) {
+                Penyewaan current = queue.dequeue();
+                if (earliest == null || current.getTglRencanaMenyewa().before(earliest.getTglRencanaMenyewa())) {
+                    if (earliest != null) {
+                        tempQueue.enqueue(earliest); // simpan yang kalah
+                    }
+                    earliest = current;
+                } else {
+                    tempQueue.enqueue(current);
+                }
+            }
+
+            // Setelah selesai mencari paling awal, simpan ke sortedQueue
+            sortedQueue.enqueue(earliest);
+
+            // Kembalikan sisanya ke queue untuk proses berikutnya
+            while (!tempQueue.isEmpty()) {
+                queue.enqueue(tempQueue.dequeue());
+            }
+        }
+
+        // Menampilkan hasil antrian yang sudah diurutkan
+        System.out.println("\n=== DAFTAR ANTRIAN PENYEWAAN YANG BELUM DISETUJUI (URUT TGL RENCANA) ===");
+        System.out.printf("%-5s %-15s %-20s %-20s %-20s %-15s%n",
+            "ID", "Nama User", "Tgl Sewa", "Tgl Rencana", "Barang Jaminan", "Status");
+
+        // Buat salinan untuk ditampilkan saja tanpa merusak antrian
+        Queue<Penyewaan> displayQueue = new Queue<>();
+        while (!sortedQueue.isEmpty()) {
+            Penyewaan p = sortedQueue.dequeue();
+            System.out.printf("%-5d %-15s %-20s %-20s %-20s %-15s%n",
                 p.getIdPenyewaan(),
                 p.getUser().getNama(),
-                p.getTglSewa().toString(),
+                p.getTglSewa(),
+                p.getTglRencanaMenyewa(),
                 p.getBarangJaminan(),
                 p.getStatus()
             );
-            tempQueue.enqueue(p); // pindahkan ke queue sementara
+            displayQueue.enqueue(p);
         }
 
-        // Kembalikan antrian utama
-        while (!tempQueue.isEmpty()) {
-            queue.enqueue(tempQueue.dequeue());
-        }
+        System.out.println("\n>>> PROSES KONFIRMASI SATU PER SATU (URUT TGL RENCANA) <<<");
 
-        System.out.println("\n>>> PROSES KONFIRMASI SATU PER SATU <<<");
-
-        while (!queue.isEmpty()) {
-            Penyewaan p = queue.dequeue();
+        while (!displayQueue.isEmpty()) {
+            Penyewaan p = displayQueue.dequeue();
             System.out.println("\nID: " + p.getIdPenyewaan() +
                             " | Nama: " + p.getUser().getNama() +
                             " | Tgl Sewa: " + p.getTglSewa() +
+                            " | Tgl Rencana: " + p.getTglRencanaMenyewa() +
                             " | Barang Jaminan: " + p.getBarangJaminan() +
                             " | Status: " + p.getStatus());
 
@@ -329,7 +355,6 @@ public class PenyewaanMethod {
             } else {
                 boolean success = penyewaanDAO.tolakPenyewaan(p.getIdPenyewaan());
                 System.out.println(success ? "Ditolak." : "Gagal ditolak.");
-                
             }
         }
 
